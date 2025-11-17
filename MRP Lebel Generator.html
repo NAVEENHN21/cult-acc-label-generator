@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CULT Sport Accessories - Product Label Generator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+    body { background-color: #f0f2f5; color: #333; line-height: 1.5; padding: 20px; max-width: 1200px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 20px; color: #2c3e50; }
+    .container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+    .form-container { flex: 1; min-width: 300px; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); }
+    .preview-container { flex: 1; min-width: 300px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+    input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    button { background-color: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; }
+    button:hover { background-color: #2980b9; }
+    button.secondary { background-color: #2ecc71; }
+    button.secondary:hover { background-color: #27ae60; }
+    
+    /* EXACT LABEL STYLING - Used for both preview and PDF */
+    .pdf-container { 
+      width: 50mm; 
+      height: 80mm; 
+      background-color: white; 
+      padding: 2mm; 
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: space-between; 
+      border: 0.5mm solid #000; 
+      border-radius: 0; 
+      font-family: Arial, sans-serif;
+    }
+    .product-info { margin-bottom: 1.5mm; }
+    .info-row { margin-bottom: 0.8mm; font-size: 8px; line-height: 1.15; }
+    .info-row .field-name { font-weight: bold; }
+    .info-row .field-value { font-weight: normal; }
+    .company-info, .contact-info { margin-top: 1.5mm; }
+    .company-info h3, .contact-info h3 { font-size: 7px; margin-bottom: 0.8mm; text-transform: uppercase; font-weight: bold; }
+    .company-address, .contact-details { line-height: 1.15; font-size: 7px; margin-bottom: 0.8mm; font-weight: normal; }
+    
+    /* FIXED BARCODE CONTAINER STYLING */
+    .barcode-container { 
+      text-align: center; 
+      margin-top: 1mm; 
+      padding: 0; 
+      line-height: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+    .barcode-svg { 
+      width: 100% !important; 
+      height: 10mm !important;
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+    }
+    .barcode-number { 
+      font-family: 'Courier New', monospace; 
+      font-size: 9px; 
+      letter-spacing: 0.8px; 
+      margin-top: 0.5mm; 
+      text-align: center; 
+      line-height: 1.2; 
+      font-weight: bold;
+      width: 100%;
+      padding: 0 1mm;
+      word-break: break-all;
+    }
+    
+    .instructions { background-color: #e8f4fc; padding: 15px; border-radius: 5px; margin-top: 20px; font-size: 14px; }
+    .instructions h3 { margin-bottom: 10px; color: #2c3e50; }
+    .instructions ul { padding-left: 20px; }
+    .instructions li { margin-bottom: 5px; }
+    .pagination { display: flex; justify-content: center; align-items: center; margin-top: 15px; gap: 10px; }
+    .pagination button { width: auto; padding: 5px 10px; font-size: 14px; }
+    .pagination span { font-weight: bold; }
+    .row-info { text-align: center; margin-top: 10px; font-size: 14px; color: #2c3e50; }
+    .button-group { display: flex; gap: 10px; }
+    .button-group button { flex: 1; }
+    @media (max-width: 768px) { 
+      .container { flex-direction: column; } 
+      .form-container, .preview-container { width: 100%; } 
+      .button-group { flex-direction: column; }
+    }
+    .loading { display: none; text-align: center; margin-top: 10px; }
+    .spinner { border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <h1>CULT Sport Accessories - Product Label Generator</h1>
+
+  <div class="container">
+    <div class="form-container">
+      <h2>Enter Product Details</h2>
+      <form id="productForm">
+        <div class="form-group">
+          <label for="excelFile">Upload Excel File:</label>
+          <input type="file" id="excelFile" accept=".xlsx,.xls">
+        </div>
+        <div class="row-info" id="rowInfo">No data loaded</div>
+        <div class="pagination" id="pagination" style="display: none;">
+          <button type="button" id="prevBtn">Previous</button>
+          <span id="currentRow">1</span> of <span id="totalRows">0</span>
+          <button type="button" id="nextBtn">Next</button>
+        </div>
+        <div class="form-group"><label for="manufactureDate">Month and Year of Manufacture:</label><input type="month" id="manufactureDate" value="2025-08"></div>
+        <div class="form-group"><label for="brand">Brand:</label><input type="text" id="brand" value="cult"></div>
+        <div class="form-group"><label for="articleNumber">Article Number:</label><input type="text" id="articleNumber" value="CSHB01FBMLT"></div>
+        <div class="form-group"><label for="articleName">Article Name:</label><input type="text" id="articleName" value="cult HIP Bands Pack of 3 (Pink,Purple & Green)"></div>
+        <div class="form-group"><label for="color">Colour:</label><input type="text" id="color" value="Multi"></div>
+        <div class="form-group"><label for="quantity">Net Quantity:</label><input type="text" id="quantity" value="Set of 3"></div>
+        <div class="form-group"><label for="size">Size:</label><input type="text" id="size" value="Onesize"></div>
+        <div class="form-group"><label for="dimension">Dimension:</label><input type="text" id="dimension" value="L: 37 cm B: 8 cm H: 0.3 cm"></div>
+        <div class="form-group"><label for="origin">Country of Origin:</label><input type="text" id="origin" value="China"></div>
+        <div class="form-group"><label for="gender">Gender:</label><input type="text" id="gender" value="Unisex"></div>
+        <div class="form-group"><label for="mrp">M.R.P.:</label><input type="text" id="mrp" value="Rs. 1999.00 (Inclusive of all taxes)"></div>
+        <div class="form-group"><label for="barcode">Barcode Number:</label><input type="text" id="barcode" value="8907123654321"></div>
+        <button type="button" id="updateBtn">Update Label</button>
+      </form>
+    </div>
+
+    <div class="preview-container">
+      <h2>Label Preview</h2>
+      <div class="pdf-container" id="labelPreview">
+        <div>
+          <div class="product-info">
+            <div class="info-row"><span class="field-name">Month and Year of Manufacture :</span> <span class="field-value">08/2025</span></div>
+            <div class="info-row"><span class="field-name">Brand :</span> <span class="field-value">cult</span></div>
+            <div class="info-row"><span class="field-name">Article Number :</span> <span class="field-value">CSHB01FBMLT</span></div>
+            <div class="info-row"><span class="field-name">Article Name :</span> <span class="field-value">cult HIP Bands Pack of 3 (Pink,Purple & Green)</span></div>
+            <div class="info-row"><span class="field-name">Colour :</span> <span class="field-value">Multi</span></div>
+            <div class="info-row"><span class="field-name">Net Quantity :</span> <span class="field-value">Set of 3</span></div>
+            <div class="info-row"><span class="field-name">Size :</span> <span class="field-value">Onesize</span></div>
+            <div class="info-row"><span class="field-name">Dimension :</span> <span class="field-value">L: 37 cm B: 8 cm H: 0.3 cm</span></div>
+            <div class="info-row"><span class="field-name">Country of Origin :</span> <span class="field-value">China</span></div>
+            <div class="info-row"><span class="field-name">Gender :</span> <span class="field-value">Unisex</span></div>
+            <div class="info-row"><span class="field-name">M.R.P. :</span> <span class="field-value">Rs. 1999.00 (Inclusive of all taxes)</span></div>
+          </div>
+          <div class="company-info">
+            <h3>DESIGNED, DISTRIBUTED & MARKETED BY:</h3>
+            <div class="company-address">
+              Cultsport Private Limited<br>
+              No.17/17C, Sector 3,
+              HSR Layout, Bangalore,<br>
+              Bengaluru Urban,
+              Karnataka, 560102.
+            </div>
+          </div>
+          <div class="contact-info">
+            <h3>FOR FEEDBACK OR CONSUMER COMPLAINT, PLEASE CONTACT</h3>
+            <div class="contact-details">
+              CUSTOMER CARE MANAGER,<br>
+              Email: hello@cultsport.com<br>
+              Customer care number: +91 8062350901
+            </div>
+          </div>
+          <div class="barcode-container">
+            <svg class="barcode-svg" id="barcodeSvg"></svg>
+            <div class="barcode-number" id="barcodeNumber">8907123654321</div>
+          </div>
+        </div>
+      </div>
+      <div class="button-group">
+        <button type="button" id="printBtn">Print Current Label</button>
+        <button type="button" id="downloadAllBtn" class="secondary">Download All Labels as PDF</button>
+      </div>
+      <div class="loading" id="loadingIndicator">
+        <div class="spinner"></div>
+        <p>Generating PDF, please wait...</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="instructions">
+    <h3>Instructions:</h3>
+    <ul>
+      <li>Prepare your Excel file with the exact column names</li>
+      <li>Upload it to auto-fill the form</li>
+      <li>Use Previous/Next buttons to navigate between rows</li>
+      <li>Click "Update Label" to refresh preview</li>
+      <li>Click "Print Current Label" to print at 50x80 mm</li>
+      <li>Click "Download All Labels as PDF" to download all labels as a single PDF file (one label per page)</li>
+    </ul>
+  </div>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const updateBtn = document.getElementById('updateBtn');
+      const printBtn = document.getElementById('printBtn');
+      const downloadAllBtn = document.getElementById('downloadAllBtn');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const currentRowSpan = document.getElementById('currentRow');
+      const totalRowsSpan = document.getElementById('totalRows');
+      const rowInfo = document.getElementById('rowInfo');
+      const pagination = document.getElementById('pagination');
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      
+      let excelData = [];
+      let currentRowIndex = 0;
+
+      function formatDateForDisplay(dateString) {
+        if (!dateString) return "";
+        
+        // Handle YYYY-MM format (from month input)
+        if (dateString.includes('-') && dateString.length >= 7) {
+          const [year, month] = dateString.split('-');
+          const monthNumber = month.substring(0, 2);
+          return `${monthNumber}/${year}`;
+        }
+        
+        // If it's already in MM/YYYY format, return as is
+        if (dateString.includes('/')) {
+          const parts = dateString.split('/');
+          if (parts.length === 2) {
+            const month = parts[0].padStart(2, '0');
+            const year = parts[1];
+            return `${month}/${year}`;
+          }
+        }
+        
+        return dateString;
+      }
+
+      function formatDateForPDF(dateValue) {
+        if (!dateValue) return "";
+        
+        // If it's already a properly formatted string from Excel, use it directly
+        if (typeof dateValue === 'string') {
+          return formatDateForDisplay(dateValue);
+        }
+        
+        // Handle Excel serial numbers
+        if (typeof dateValue === 'number') {
+          // Excel date serial number (days since Jan 1, 1900)
+          const date = new Date((dateValue - 25569) * 86400 * 1000);
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const year = date.getFullYear();
+          return `${month}/${year}`;
+        }
+        
+        // Handle Date objects
+        if (dateValue instanceof Date) {
+          const month = (dateValue.getMonth() + 1).toString().padStart(2, '0');
+          const year = dateValue.getFullYear();
+          return `${month}/${year}`;
+        }
+        
+        return String(dateValue);
+      }
+
+      function formatMRP(mrpValue) {
+        if (!mrpValue) return "";
+        
+        // Remove any existing .00 to avoid duplication
+        let mrp = String(mrpValue).trim();
+        
+        // Remove any existing "Rs." prefix and parentheses to avoid duplication
+        mrp = mrp.replace(/^Rs\.?\s*/i, '').replace(/\s*\(Inclusive of all taxes\)/i, '');
+        
+        // Add .00 if not already present
+        if (!mrp.includes('.')) {
+          mrp += '.00';
+        }
+        
+        return `Rs. ${mrp} (Inclusive of all taxes)`;
+      }
+
+      function generateBarcode(barcodeValue, svgElement) {
+        if (!barcodeValue) return;
+        
+        try {
+          svgElement.innerHTML = '';
+          JsBarcode(svgElement, barcodeValue, {
+            format: "CODE128",
+            width: 1.1,
+            height: 30,
+            displayValue: false,
+            margin: 2,
+            background: "#ffffff"
+          });
+        } catch (error) {
+          console.error('Error generating barcode:', error);
+        }
+      }
+
+      function updateLabel() {
+        const manufactureDateInput = document.getElementById('manufactureDate').value;
+        const manufactureDate = formatDateForDisplay(manufactureDateInput);
+        const brand = document.getElementById('brand').value;
+        const articleNumber = document.getElementById('articleNumber').value;
+        const articleName = document.getElementById('articleName').value;
+        const color = document.getElementById('color').value;
+        const quantity = document.getElementById('quantity').value;
+        const size = document.getElementById('size').value;
+        const dimension = document.getElementById('dimension').value;
+        const origin = document.getElementById('origin').value;
+        const gender = document.getElementById('gender').value;
+        const mrp = document.getElementById('mrp').value;
+        const barcode = document.getElementById('barcode').value;
+
+        const infoRows = document.querySelectorAll('.info-row');
+        infoRows[0].querySelector('.field-value').textContent = manufactureDate;
+        infoRows[1].querySelector('.field-value').textContent = brand;
+        infoRows[2].querySelector('.field-value').textContent = articleNumber;
+        infoRows[3].querySelector('.field-value').textContent = articleName;
+        infoRows[4].querySelector('.field-value').textContent = color;
+        infoRows[5].querySelector('.field-value').textContent = quantity;
+        infoRows[6].querySelector('.field-value').textContent = size;
+        infoRows[7].querySelector('.field-value').textContent = dimension;
+        infoRows[8].querySelector('.field-value').textContent = origin;
+        infoRows[9].querySelector('.field-value').textContent = gender;
+        infoRows[10].querySelector('.field-value').textContent = mrp;
+
+        const barcodeSvg = document.getElementById('barcodeSvg');
+        generateBarcode(barcode, barcodeSvg);
+        
+        const barcodeNumber = document.getElementById('barcodeNumber');
+        barcodeNumber.textContent = barcode;
+      }
+
+      // Function to get the exact HTML structure for a label - USED FOR BOTH PRINT AND PDF
+      function getLabelHTML(row) {
+        const manufactureDate = formatDateForPDF(row["Month_of_Manufacturing"]);
+        const barcodeValue = row["Barcode"] || row["Product_Code"] || "";
+        const mrpValue = formatMRP(row["MRP"] || "");
+        
+        return `
+          <div class="pdf-container">
+            <div>
+              <div class="product-info">
+                <div class="info-row"><span class="field-name">Month and Year of Manufacture :</span> <span class="field-value">${manufactureDate}</span></div>
+                <div class="info-row"><span class="field-name">Brand :</span> <span class="field-value">${row["Brand"] || ""}</span></div>
+                <div class="info-row"><span class="field-name">Article Number :</span> <span class="field-value">${row["Product_Code"] || ""}</span></div>
+                <div class="info-row"><span class="field-name">Article Name :</span> <span class="field-value">${row["Article_Name"] || ""}</span></div>
+                <div class="info-row"><span class="field-name">Colour :</span> <span class="field-value">${row["Colour"] || ""}</span></div>
+                <div class="info-row"><span class="field-name">Net Quantity :</span> <span class="field-value">${row["NET_Quantity"] || ""}</span></div>
+                <div class="info-row"><span class="field-name">Size :</span> <span class="field-value">${row["Size"] || ""}</span></div>
+                <div class="info-row"><span class="field-name">Dimension :</span> <span class="field-value">L: ${row["L(cm)"] || ""} cm B: ${row["B(cm)"] || ""} cm H: ${row["H(cm)"] || ""} cm</span></div>
+                <div class="info-row"><span class="field-name">Country of Origin :</span> <span class="field-value">${row["Country_of_Origin"] || ""}</span></div>
+                <div class="info-row"><span class="field-name">Gender :</span> <span class="field-value">${row["Gender"] || ""}</span></div>
+                <div class="info-row"><span class="field-name">M.R.P. :</span> <span class="field-value">${mrpValue}</span></div>
+              </div>
+              <div class="company-info">
+                <h3>DESIGNED, DISTRIBUTED & MARKETED BY:</h3>
+                <div class="company-address">
+                  Cultsport Private Limited<br>
+                  No.17/17C, Sector 3,
+                  HSR Layout, Bangalore,<br>
+                  Bengaluru Urban,
+                  Karnataka, 560102.
+                </div>
+              </div>
+              <div class="contact-info">
+                <h3>FOR FEEDBACK OR CONSUMER COMPLAINT, PLEASE CONTACT</h3>
+                <div class="contact-details">
+                  CUSTOMER CARE MANAGER,<br>
+                  Email: hello@cultsport.com<br>
+                  Customer care number: +91 8062350901
+                </div>
+              </div>
+              <div class="barcode-container">
+                <svg class="barcode-svg"></svg>
+                <div class="barcode-number">${barcodeValue}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function printLabel() {
+        const manufactureDateInput = document.getElementById('manufactureDate').value;
+        const barcodeValue = document.getElementById('barcode').value;
+        
+        // Extract dimension values from the dimension input field
+        const dimensionText = document.getElementById('dimension').value;
+        let L = "", B = "", H = "";
+        
+        // Parse the dimension text to extract L, B, H values
+        const dimensionMatch = dimensionText.match(/L:\s*([\d.]+)\s*cm\s*B:\s*([\d.]+)\s*cm\s*H:\s*([\d.]+)\s*cm/);
+        if (dimensionMatch) {
+          L = dimensionMatch[1];
+          B = dimensionMatch[2];
+          H = dimensionMatch[3];
+        }
+        
+        const printWindow = window.open('', '_blank');
+        
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Print Label</title>
+            <style>
+              body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: white; }
+              .pdf-container { 
+                width: 50mm; 
+                height: 80mm; 
+                background-color: white; 
+                padding: 2mm; 
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); 
+                display: flex; 
+                flex-direction: column; 
+                justify-content: space-between; 
+                border: 0.5mm solid #000; 
+                border-radius: 0; 
+                font-family: Arial, sans-serif;
+              }
+              .product-info { margin-bottom: 1.5mm; }
+              .info-row { margin-bottom: 0.8mm; font-size: 8px; line-height: 1.15; }
+              .info-row .field-name { font-weight: bold; }
+              .info-row .field-value { font-weight: normal; }
+              .company-info, .contact-info { margin-top: 1.5mm; }
+              .company-info h3, .contact-info h3 { font-size: 7px; margin-bottom: 0.8mm; text-transform: uppercase; font-weight: bold; }
+              .company-address, .contact-details { line-height: 1.15; font-size: 7px; margin-bottom: 0.8mm; font-weight: normal; }
+              .barcode-container { 
+                text-align: center; 
+                margin-top: 1mm; 
+                padding: 0; 
+                line-height: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+              }
+              .barcode-svg { 
+                width: 100% !important; 
+                height: 10mm !important;
+                display: block;
+                margin: 0 auto;
+                max-width: 100%;
+              }
+              .barcode-number { 
+                font-family: 'Courier New', monospace; 
+                font-size: 9px; 
+                letter-spacing: 0.8px; 
+                margin-top: 0.5mm; 
+                text-align: center; 
+                line-height: 1.2; 
+                font-weight: bold;
+                width: 100%;
+                padding: 0 1mm;
+                word-break: break-all;
+              }
+              @media print { 
+                body { margin: 0; padding: 0; } 
+                .pdf-container { box-shadow: none; }
+                @page { margin: 0; size: 50mm 80mm; }
+              }
+            </style>
+            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
+          </head>
+          <body>
+            ${getLabelHTML({
+              "Month_of_Manufacturing": manufactureDateInput,
+              "Brand": document.getElementById('brand').value,
+              "Product_Code": document.getElementById('articleNumber').value,
+              "Article_Name": document.getElementById('articleName').value,
+              "Colour": document.getElementById('color').value,
+              "NET_Quantity": document.getElementById('quantity').value,
+              "Size": document.getElementById('size').value,
+              "L(cm)": L,
+              "B(cm)": B, 
+              "H(cm)": H,
+              "Country_of_Origin": document.getElementById('origin').value,
+              "Gender": document.getElementById('gender').value,
+              "MRP": document.getElementById('mrp').value,
+              "Barcode": barcodeValue
+            })}
+            <script>
+              window.onload = function() {
+                const barcodeValue = '${barcodeValue}';
+                const barcodeSvg = document.querySelector('.barcode-svg');
+                if (barcodeValue && barcodeSvg) {
+                  try {
+                    JsBarcode(barcodeSvg, barcodeValue, { 
+                      format: "CODE128", 
+                      width: 1.1, 
+                      height: 30, 
+                      displayValue: false, 
+                      margin: 2,
+                      background: "#ffffff"
+                    });
+                  } catch (error) {
+                    console.error('Error generating barcode for print:', error);
+                  }
+                }
+                setTimeout(function() {
+                  window.print();
+                  setTimeout(function() { window.close(); }, 100);
+                }, 500);
+              };
+            <\/script>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+      }
+
+      async function downloadAllLabels() {
+        if (excelData.length === 0) {
+          alert('Please upload an Excel file first.');
+          return;
+        }
+
+        loadingIndicator.style.display = 'block';
+        downloadAllBtn.disabled = true;
+
+        try {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF({ 
+            orientation: 'portrait', 
+            unit: 'mm', 
+            format: [50, 80], // EXACT SAME SIZE AS PRINT - 50x80mm
+            compress: true
+          });
+
+          for (let i = 0; i < excelData.length; i++) {
+            if (i > 0) {
+              doc.addPage([50, 80], 'portrait'); // EXACT SAME SIZE FOR ALL PAGES
+            }
+
+            const row = excelData[i];
+            
+            // Create a temporary container with the EXACT same HTML structure as print
+            const tempContainer = document.createElement('div');
+            tempContainer.style.cssText = 'position: absolute; left: -9999px; width: 50mm; height: 80mm;';
+            document.body.appendChild(tempContainer);
+            
+            // Use the EXACT same HTML structure as the print function
+            tempContainer.innerHTML = getLabelHTML(row);
+            
+            // Generate barcode
+            const barcodeSvg = tempContainer.querySelector('.barcode-svg');
+            const barcodeValue = row["Barcode"] || row["Product_Code"] || "";
+            generateBarcode(barcodeValue, barcodeSvg);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const canvas = await html2canvas(tempContainer, {
+              scale: 4,
+              useCORS: true,
+              width: 50 * 3.78, // Convert mm to pixels
+              height: 80 * 3.78, // Convert mm to pixels
+              backgroundColor: '#ffffff',
+              logging: false
+            });
+            
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            
+            // Add image to fill entire page (50x80mm)
+            doc.addImage(imgData, 'PNG', 0, 0, 50, 80, '', 'FAST');
+            document.body.removeChild(tempContainer);
+          }
+          
+          doc.save('all_product_labels.pdf');
+          
+        } catch (error) {
+          console.error('Error generating PDF:', error);
+          alert('Error generating PDF. Please try again.');
+        } finally {
+          loadingIndicator.style.display = 'none';
+          downloadAllBtn.disabled = false;
+        }
+      }
+
+      function loadRowData(index, updatePreview = true) {
+        if (excelData.length === 0 || index < 0 || index >= excelData.length) return;
+        
+        const row = excelData[index];
+        
+        let manufactureDate = row["Month_of_Manufacturing"] || "";
+        // Convert to YYYY-MM format for input field
+        if (manufactureDate) {
+          const formattedDate = formatDateForPDF(manufactureDate);
+          if (formattedDate.includes('/')) {
+            const [month, year] = formattedDate.split('/');
+            manufactureDate = `${year}-${month}`;
+          }
+        }
+        
+        document.getElementById('manufactureDate').value = manufactureDate;
+        document.getElementById('brand').value = row["Brand"] || "";
+        document.getElementById('articleNumber').value = row["Product_Code"] || "";
+        document.getElementById('articleName').value = row["Article_Name"] || "";
+        document.getElementById('color').value = row["Colour"] || "";
+        document.getElementById('quantity').value = row["NET_Quantity"] || "";
+        document.getElementById('size').value = row["Size"] || "";
+        document.getElementById('dimension').value = `L: ${row["L(cm)"] || ""} cm B: ${row["B(cm)"] || ""} cm H: ${row["H(cm)"] || ""} cm`;
+        document.getElementById('origin').value = row["Country_of_Origin"] || "";
+        document.getElementById('gender').value = row["Gender"] || "";
+        document.getElementById('mrp').value = formatMRP(row["MRP"] || "");
+        document.getElementById('barcode').value = row["Barcode"] || row["Product_Code"] || "";
+        
+        currentRowIndex = index;
+        currentRowSpan.textContent = index + 1;
+        totalRowsSpan.textContent = excelData.length;
+        rowInfo.textContent = `Row ${index + 1} of ${excelData.length}`;
+        
+        if (updatePreview) updateLabel();
+      }
+
+      function nextRow() { if (currentRowIndex < excelData.length - 1) loadRowData(currentRowIndex + 1); }
+      function prevRow() { if (currentRowIndex > 0) loadRowData(currentRowIndex - 1); }
+
+      updateBtn.addEventListener('click', updateLabel);
+      printBtn.addEventListener('click', printLabel);
+      downloadAllBtn.addEventListener('click', downloadAllLabels);
+      prevBtn.addEventListener('click', prevRow);
+      nextBtn.addEventListener('click', nextRow);
+
+      document.getElementById('excelFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          excelData = XLSX.utils.sheet_to_json(worksheet);
+          
+          if (excelData.length > 0) {
+            pagination.style.display = 'flex';
+            loadRowData(0);
+          } else {
+            pagination.style.display = 'none';
+            rowInfo.textContent = 'No data found in Excel file';
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      });
+
+      document.getElementById('manufactureDate').addEventListener('change', updateLabel);
+
+      // Initialize with the data from the image
+      generateBarcode(document.getElementById('barcode').value, document.getElementById('barcodeSvg'));
+    });
+  </script>
+</body>
+</html>
