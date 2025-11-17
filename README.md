@@ -13,23 +13,10 @@ Features:
 •	Barcode automatically rendered
 •	Required Excel Format
 
-Prepare your Excel file with the following exact column headers:
-Month and Year of Manufacture
-Brand
-Article Number
-Article Name
-Colour
-Net Quantity
-Size
-Dimension
-Country of Origin
-Gender
-MRP
-Barcode Number
 
 Each row will generate one label.
 How to Use
-•	Prepare your Excel file with the exact column names listed above.
+•	Prepare your Excel file with the exact column names.
 •	Upload the Excel file in the tool.
 
 •	The form will auto-fill with the first row.
