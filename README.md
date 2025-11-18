@@ -31,6 +31,7 @@ The form auto-fills from Excel, previews the label, and lets you download or pri
 ---
 
 ##  Output
+<img width="594" height="632" alt="image" src="https://github.com/user-attachments/assets/d5d6659e-690a-4e0b-a9ef-37332d23c405" />
 
 ### **Single label print**
 <img width="263" height="383" alt="image" src="https://github.com/user-attachments/assets/744af3d4-5f28-441a-9e11-1f0c98c69304" />
